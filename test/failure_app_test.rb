@@ -69,6 +69,13 @@ class FailureTest < ActiveSupport::TestCase
         assert_equal 302, @response.first
       end
     end
+    
+    test 'redirects the correct format if it is a non-html format request' do
+      swap Devise, :navigational_formats => [:js] do
+        call_failure('formats' => :js)
+        assert_equal 'http://test.host/users/sign_in.js', @response.second["Location"]
+      end
+    end
   end
 
   context 'For HTTP request' do
@@ -120,7 +127,7 @@ class FailureTest < ActiveSupport::TestCase
           swap Devise, :http_authenticatable_on_xhr => false do
             call_failure('formats' => :json, 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest')
             assert_equal 302, @response.first
-            assert_equal 'http://test.host/users/sign_in', @response.second["Location"]
+            assert_equal 'http://test.host/users/sign_in.json', @response.second["Location"]
           end
         end
       end
@@ -144,7 +151,7 @@ class FailureTest < ActiveSupport::TestCase
   end
 
   context 'With recall' do
-    test 'calls the original controller' do
+    test 'calls the original controller if invalid email or password' do
       env = {
         "warden.options" => { :recall => "devise/sessions#new", :attempted_path => "/users/sign_in" },
         "devise.mapping" => Devise.mappings[:user],
@@ -153,6 +160,28 @@ class FailureTest < ActiveSupport::TestCase
       call_failure(env)
       assert @response.third.body.include?('<h2>Sign in</h2>')
       assert @response.third.body.include?('Invalid email or password.')
+    end
+    
+    test 'calls the original controller if not confirmed email' do
+      env = {
+        "warden.options" => { :recall => "devise/sessions#new", :attempted_path => "/users/sign_in", :message => :unconfirmed },
+        "devise.mapping" => Devise.mappings[:user],
+        "warden" => stub_everything
+      }
+      call_failure(env)
+      assert @response.third.body.include?('<h2>Sign in</h2>')
+      assert @response.third.body.include?('You have to confirm your account before continuing.')     
+    end
+    
+    test 'calls the original controller if inactive account' do
+      env = {
+        "warden.options" => { :recall => "devise/sessions#new", :attempted_path => "/users/sign_in", :message => :inactive },
+        "devise.mapping" => Devise.mappings[:user],
+        "warden" => stub_everything
+      }
+      call_failure(env)
+      assert @response.third.body.include?('<h2>Sign in</h2>')
+      assert @response.third.body.include?('Your account was not activated yet.')     
     end
   end
 end

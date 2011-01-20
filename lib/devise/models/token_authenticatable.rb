@@ -20,7 +20,7 @@ module Devise
     #
     # == Options
     #
-    # TokenAuthenticable adds the following options to devise_for:
+    # TokenAuthenticatable adds the following options to devise_for:
     #
     #   * +token_authentication_key+: Defines name of the authentication token params key. E.g. /users/sign_in?some_key=...
     #
@@ -38,17 +38,17 @@ module Devise
       # Generate new authentication token and save the record.
       def reset_authentication_token!
         reset_authentication_token
-        self.save(:validate => false)
+        save(:validate => false)
       end
 
       # Generate authentication token unless already exists.
       def ensure_authentication_token
-        self.reset_authentication_token if self.authentication_token.blank?
+        reset_authentication_token if authentication_token.blank?
       end
 
       # Generate authentication token unless already exists and save the record.
       def ensure_authentication_token!
-        self.reset_authentication_token! if self.authentication_token.blank?
+        reset_authentication_token! if authentication_token.blank?
       end
 
       # Hook called after token authentication.

@@ -16,15 +16,12 @@ module Devise
         helper_method *helpers
 
         prepend_before_filter :is_devise_resource?
-
-        Devise.routes_prepare do
-          skip_before_filter *Devise.mappings.keys.map { |m| :"authenticate_#{m}!" }
-        end
+        respond_to *Mime::SET.map(&:to_sym) if mimes_for_respond_to.empty?
       end
 
       # Gets the actual resource stored in the instance variable
       def resource
-        instance_variable_get("@#{resource_name}")
+        instance_variable_get(:"@#{resource_name}")
       end
 
       # Proxy to devise map name
@@ -58,6 +55,11 @@ module Devise
       # Checks whether it's a devise mapped resource or not.
       def is_devise_resource? #:nodoc:
         unknown_action!("Could not find devise mapping for path #{request.fullpath.inspect}") unless devise_mapping
+      end
+
+      # Check whether it's navigational format, such as :html or :iphone, or not.
+      def is_navigational_format?
+        Devise.navigational_formats.include?(request.format.to_sym)
       end
 
       def unknown_action!(msg)

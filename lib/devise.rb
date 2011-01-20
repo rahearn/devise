@@ -147,6 +147,10 @@ module Devise
   mattr_accessor :lock_strategy
   @@lock_strategy = :failed_attempts
 
+  # Defines which key will be used when locking and unlocking an account
+  mattr_accessor :unlock_keys
+  @@unlock_keys = [ :email ]
+
   # Defines which strategy can be used to unlock an account.
   # Values: :email, :time, :both
   mattr_accessor :unlock_strategy
@@ -159,6 +163,10 @@ module Devise
   # Time interval to unlock the account if :time is defined as unlock_strategy.
   mattr_accessor :unlock_in
   @@unlock_in = 1.hour
+
+  # Defines which key will be used when recovering the password for an account
+  mattr_accessor :reset_password_keys
+  @@reset_password_keys = [ :email ]
 
   # The default scope which is used by warden.
   mattr_accessor :default_scope
@@ -207,11 +215,6 @@ module Devise
   mattr_accessor :warden_config
   @@warden_config = nil
   @@warden_config_block = nil
-
-  # Store whether the route file was already loaded.
-  mattr_accessor :routes_loaded
-  @@routes_loaded = false
-  @@routes_prepare = []
 
   # Default way to setup Devise. Run rails generate devise_install to create
   # a fresh initializer with all configuration values.
@@ -367,25 +370,6 @@ module Devise
   # Generate a friendly string randomically to be used as token.
   def self.friendly_token
     ActiveSupport::SecureRandom.base64(44).tr('+/=', 'xyz')
-  end
-
-  # Store a block to be executed only after the routes are loaded.
-  # Required on config.cache_classes environment as a class may be
-  # loaded to early and then some configuration wouldn't apply.
-  def self.routes_prepare
-    if Rails.application.config.cache_classes || !routes_loaded
-      @@routes_prepare << Proc.new
-    else
-      yield
-    end
-  end
-
-  # Invoke the stored routes prepare blocks and set routes_loaded to true.
-  def self.call_routes_prepare!
-    while block = @@routes_prepare.shift
-      block.call
-    end
-    @routes_loaded = true
   end
 end
 

@@ -36,8 +36,8 @@ module Devise
         mapping = mapping.name
 
         class_eval <<-METHODS, __FILE__, __LINE__ + 1
-          def authenticate_#{mapping}!
-            warden.authenticate!(:scope => :#{mapping})
+          def authenticate_#{mapping}!(force = false)
+            warden.authenticate!(:scope => :#{mapping}) if !devise_controller? || force
           end
 
           def #{mapping}_signed_in?
@@ -110,6 +110,8 @@ module Devise
 
         if options[:bypass]
           warden.session_serializer.store(resource, scope)
+        elsif warden.user(scope) == resource && !options.delete(:force)
+          # Do nothing. User already signed in and we are not forcing it.
         else
           warden.set_user(resource, options.merge!(:scope => scope))
         end
@@ -199,18 +201,12 @@ module Devise
         options  = args.extract_options!
         scope    = Devise::Mapping.find_scope!(resource_or_scope)
         resource = args.last || resource_or_scope
-
-        if warden.user(scope) == resource
-          expire_session_data_after_sign_in!
-        else
-          sign_in(scope, resource, options)
-        end
-
-        redirect_for_sign_in(scope, resource)
+        sign_in(scope, resource, options)
+        redirect_to redirect_location(scope, resource)
       end
 
-      def redirect_for_sign_in(scope, resource) #:nodoc:
-        redirect_to stored_location_for(scope) || after_sign_in_path_for(resource)
+      def redirect_location(scope, resource) #:nodoc:
+        stored_location_for(scope) || after_sign_in_path_for(resource)
       end
 
       # Sign out an user and tries to redirect to the url specified by
@@ -218,10 +214,6 @@ module Devise
       def sign_out_and_redirect(resource_or_scope)
         scope = Devise::Mapping.find_scope!(resource_or_scope)
         Devise.sign_out_all_scopes ? sign_out : sign_out(scope)
-        redirect_for_sign_out(scope)
-      end
-
-      def redirect_for_sign_out(scope) #:nodoc:
         redirect_to after_sign_out_path_for(scope)
       end
 

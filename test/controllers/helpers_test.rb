@@ -1,7 +1,7 @@
 require 'test_helper'
 require 'ostruct'
 
-class ControllerAuthenticableTest < ActionController::TestCase
+class ControllerAuthenticatableTest < ActionController::TestCase
   tests ApplicationController
 
   def setup
@@ -17,7 +17,7 @@ class ControllerAuthenticableTest < ActionController::TestCase
     @mock_warden.expects(:authenticate?).with(:scope => :my_scope)
     @controller.signed_in?(:my_scope)
   end
-  
+
   test 'proxy signed_in?(nil) to authenticate?' do
     Devise.mappings.keys.each do |scope| # :user, :admin, :manager
       @mock_warden.expects(:authenticate?).with(:scope => scope)
@@ -90,14 +90,30 @@ class ControllerAuthenticableTest < ActionController::TestCase
 
   test 'sign in proxy to set_user on warden' do
     user = User.new
+    @mock_warden.expects(:user).returns(nil)
     @mock_warden.expects(:set_user).with(user, :scope => :user).returns(true)
     @controller.sign_in(:user, user)
   end
 
   test 'sign in accepts a resource as argument' do
     user = User.new
+    @mock_warden.expects(:user).returns(nil)
     @mock_warden.expects(:set_user).with(user, :scope => :user).returns(true)
     @controller.sign_in(user)
+  end
+
+  test 'does not sign in again if the user is already in' do
+    user = User.new
+    @mock_warden.expects(:user).returns(user)
+    @mock_warden.expects(:set_user).never
+    @controller.sign_in(user)
+  end
+
+  test 'sign in again when the user is already in only if force is given' do
+    user = User.new
+    @mock_warden.expects(:user).returns(user)
+    @mock_warden.expects(:set_user).with(user, :scope => :user).returns(true)
+    @controller.sign_in(user, :force => true)
   end
 
   test 'sign in accepts bypass as option' do
@@ -183,6 +199,17 @@ class ControllerAuthenticableTest < ActionController::TestCase
     @mock_warden.expects(:set_user).never
     @controller.expects(:redirect_to).with(admin_root_path)
     @controller.sign_in_and_redirect(admin)
+  end
+
+  test 'redirect_location returns the stored location if set' do
+    user = User.new
+    @controller.session[:"user_return_to"] = "/foo.bar"
+    assert_equal '/foo.bar', @controller.redirect_location('user', user)
+  end
+
+  test 'redirect_location returns the after sign in path by default' do
+    user = User.new
+    assert_equal @controller.after_sign_in_path_for(:user), @controller.redirect_location('user', user)
   end
 
   test 'sign out and redirect uses the configured after sign out path when signing out only the current scope' do
